@@ -1,0 +1,34 @@
+plugins {
+    id 'java'
+    id 'application'
+}
+
+group = 'es.deusto.sd.ecoembes'
+version = '1.0'
+
+repositories {
+    mavenCentral()
+}
+
+java {
+    toolchain {
+        languageVersion = JavaLanguageVersion.of(21)
+    }
+}
+
+dependencies {
+    // (Opcional) si más adelante quieres usar JSON (Gson, Jackson…)
+    // implementation 'com.fasterxml.jackson.core:jackson-databind:2.18.2'
+    // implementation 'com.google.code.gson:gson:2.11.0'
+
+    testImplementation 'org.junit.jupiter:junit-jupiter:5.11.0'
+}
+
+application {
+    // Clase con el main que arranca la UI
+    mainClass = 'client.EcoembesClientApp'
+}
+
+test {
+    useJUnitPlatform()
+}
