@@ -9,6 +9,11 @@ import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
+import java.util.ArrayList;
+import java.util.List;
+
+import es.deusto.sd.ecoembesClient.data.Dumpster;
+import es.deusto.sd.ecoembesClient.data.Plant;
 
 public class PlantProxy {
 
@@ -91,4 +96,75 @@ public class PlantProxy {
         }
         throw new IOException("HTTP error assigning dumpster: " + status);
     }
+    
+    public List<Plant> getAllPlants(String token) throws IOException {
+
+	    String endpoint = baseUrl + "/plants/retrievals?token=" + token;
+	    URL url = new URL(endpoint);
+	    HttpURLConnection conn = (HttpURLConnection) url.openConnection();
+
+	    conn.setRequestMethod("GET");
+	    conn.setRequestProperty("Accept", "application/json");
+	    conn.setDoOutput(true);
+
+	    int responseCode = conn.getResponseCode();
+
+	    if (responseCode == HttpURLConnection.HTTP_OK) {
+	        // Read the response into a String
+	        StringBuilder sb = new StringBuilder();
+	        try (BufferedReader br = new BufferedReader(
+	                new InputStreamReader(conn.getInputStream(), StandardCharsets.UTF_8))) {
+	            String line;
+	            while ((line = br.readLine()) != null) {
+	                sb.append(line);
+	            }
+	        }
+
+	        String json = sb.toString().trim();
+	        System.out.println("Received JSON: " + json);
+	        // Remove surrounding [ ] from JSON array
+	        if (json.startsWith("[") && json.endsWith("]")) {
+	            json = json.substring(1, json.length() - 1);
+	        }
+
+	        List<Plant> plants = new ArrayList<>();
+
+	        // Split each object (assumes no nested } inside objects)
+	        String[] items = json.split("\\},\\s*\\{");
+
+	        for (String item : items) {
+	            item = item.replace("{", "").replace("}", "").trim();
+
+	            long id = 0;
+	            String name = "";
+	            int pc = 0;
+	            
+	            String[] fields = item.split(",");
+	            for (String field : fields) {
+	                String[] kv = field.split(":", 2);
+	                if (kv.length != 2) continue;
+
+	                String key = kv[0].trim().replace("\"", "");
+	                String value = kv[1].trim().replace("\"", "");
+	                
+	                switch (key) {
+	                    case "id" -> id = Long.parseLong(value);
+	                    case "name" -> name = value;
+	                    case "pc" -> pc = Integer.parseInt(value);
+	                    
+	                }
+	            }
+
+	            // Construct the immutable record
+	            plants.add(new Plant(id, name,pc));
+	        }
+
+	        return plants;
+
+	    } else if (responseCode == HttpURLConnection.HTTP_UNAUTHORIZED) {
+	        throw new SecurityException("Unauthorized: invalid token");
+	    } else {
+	        throw new IOException("Server error: " + responseCode);
+	    }
+	}
 }

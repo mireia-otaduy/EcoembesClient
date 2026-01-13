@@ -2,14 +2,20 @@ package es.deusto.sd.ecoembesClient.proxy;
 
 import java.io.BufferedReader;
 import java.io.IOException;
+import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.OutputStream;
 import java.net.HttpURLConnection;
 import java.net.URL;
 import java.nio.charset.StandardCharsets;
 import java.time.LocalDate;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+
+
+
+import es.deusto.sd.ecoembesClient.data.Dumpster;
 
 /**
  * HTTP proxy for Dumpster-related operations against the Ecoembes backend.
@@ -150,6 +156,77 @@ public class DumpsterProxy {
 		}
 		throw new IOException("HTTP error querying status by postal code: " + status);
 	}
+	
+	public List<Dumpster> getAllDumpsters(String token) throws IOException {
 
+	    String endpoint = baseUrl + "/dumpsters/retrievals?token=" + token;
+	    URL url = new URL(endpoint);
+	    HttpURLConnection conn = (HttpURLConnection) url.openConnection();
 
+	    conn.setRequestMethod("GET");
+	    conn.setRequestProperty("Accept", "application/json");
+	    conn.setDoOutput(true);
+
+	    int responseCode = conn.getResponseCode();
+
+	    if (responseCode == HttpURLConnection.HTTP_OK) {
+	        // Read the response into a String
+	        StringBuilder sb = new StringBuilder();
+	        try (BufferedReader br = new BufferedReader(
+	                new InputStreamReader(conn.getInputStream(), StandardCharsets.UTF_8))) {
+	            String line;
+	            while ((line = br.readLine()) != null) {
+	                sb.append(line);
+	            }
+	        }
+
+	        String json = sb.toString().trim();
+	        //System.out.println("Received JSON: " + json);
+	        // Remove surrounding [ ] from JSON array
+	        if (json.startsWith("[") && json.endsWith("]")) {
+	            json = json.substring(1, json.length() - 1);
+	        }
+
+	        List<Dumpster> dumpsters = new ArrayList<>();
+
+	        // Split each object (assumes no nested } inside objects)
+	        String[] items = json.split("\\},\\s*\\{");
+
+	        for (String item : items) {
+	            item = item.replace("{", "").replace("}", "").trim();
+
+	            long id = 0;
+	            int containers = 0;
+	            String level = "";
+	            int pc = 0;
+	            
+	            String[] fields = item.split(",");
+	            for (String field : fields) {
+	                String[] kv = field.split(":", 2);
+	                if (kv.length != 2) continue;
+
+	                String key = kv[0].trim().replace("\"", "");
+	                String value = kv[1].trim().replace("\"", "");
+	                
+	                switch (key) {
+	                    case "id" -> id = Long.parseLong(value);
+	                    case "containers" -> containers = Integer.parseInt(value);
+	                    case "level" -> level = value;
+	                    case "pc" -> pc = Integer.parseInt(value);
+	                    
+	                }
+	            }
+
+	            // Construct the immutable record
+	            dumpsters.add(new Dumpster(id, containers, level,pc));
+	        }
+
+	        return dumpsters;
+
+	    } else if (responseCode == HttpURLConnection.HTTP_UNAUTHORIZED) {
+	        throw new SecurityException("Unauthorized: invalid token");
+	    } else {
+	        throw new IOException("Server error: " + responseCode);
+	    }
+	}
 }

@@ -17,11 +17,16 @@ java {
 }
 
 dependencies {
-    // (Opcional) si más adelante quieres usar JSON (Gson, Jackson…)
-    // implementation 'com.fasterxml.jackson.core:jackson-databind:2.18.2'
-    // implementation 'com.google.code.gson:gson:2.11.0'
 
+	// Spring Boot Starter Web for building web applications
+    implementation 'org.springframework.boot:spring-boot-starter-web'
+    // Spring Data JPA for database access
+    implementation 'org.springframework.boot:spring-boot-starter-data-jpa'
+    // (Opcional) si más adelante quieres usar JSON (Gson, Jackson…)
+    implementation 'com.fasterxml.jackson.core:jackson-databind:2.18.2'
+    // implementation 'com.google.code.gson:gson:2.11.0'
     testImplementation 'org.junit.jupiter:junit-jupiter:5.11.0'
+    
 }
 
 application {

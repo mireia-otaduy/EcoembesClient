@@ -1,5 +1,6 @@
 package es.deusto.sd.ecoembesClient.ui;
 
+import es.deusto.sd.ecoembesClient.controller.ServiceController;
 import es.deusto.sd.ecoembesClient.proxy.AuthProxy;
 
 import javax.swing.*;
@@ -7,7 +8,7 @@ import java.awt.*;
 
 public class MainWindow extends JFrame {
 
-    private final AuthProxy authProxy;
+    private final ServiceController serviceController;
     private final String token;
     private final String userEmail;   // email of logged-in employee
 
@@ -30,8 +31,8 @@ public class MainWindow extends JFrame {
     private final Font fontCard   = new Font("Segoe UI", Font.BOLD, 16);
     private final Font fontText   = new Font("Segoe UI", Font.PLAIN, 13);
 
-    public MainWindow(AuthProxy authProxy, String token, String userEmail) {
-        this.authProxy = authProxy;
+    public MainWindow(ServiceController serviceController, String token, String userEmail) {
+        this.serviceController = serviceController;
         this.token = token;
         this.userEmail = userEmail;
         initUI();
@@ -54,8 +55,8 @@ public class MainWindow extends JFrame {
         add(contentPanel, BorderLayout.CENTER);
 
         // inicializamos ventanas reutilizables
-        dumpstersWindow = new DumpstersWindow(authProxy, token, bgMain, fontCard, fontText);
-        plantsWindow    = new PlantsWindow(authProxy, token, bgMain, fontCard, fontText);
+        dumpstersWindow = new DumpstersWindow(serviceController, token, bgMain, fontCard, fontText);
+        plantsWindow    = new PlantsWindow(serviceController, token, bgMain, fontCard, fontText);
 
         showDashboard();
     }
@@ -272,7 +273,7 @@ public class MainWindow extends JFrame {
     /* ===================  SESSION DETAILS  =================== */
 
     private void openAccountWindow() {
-        AccountWindow aw = new AccountWindow(authProxy, token, userEmail, this);
+        AccountWindow aw = new AccountWindow(serviceController, token, userEmail, this);
         aw.setVisible(true);
     }
 
@@ -287,7 +288,7 @@ public class MainWindow extends JFrame {
 
         if (resp == JOptionPane.YES_OPTION) {
             try {
-                boolean ok = authProxy.logout(token);
+                boolean ok = serviceController.logout(token);
             } catch (Exception ex) {
                 JOptionPane.showMessageDialog(this,
                         "Error during logout: " + ex.getMessage(),
@@ -296,7 +297,7 @@ public class MainWindow extends JFrame {
 
             SwingUtilities.invokeLater(() -> {
                 dispose();
-                new LoginWindow(authProxy).setVisible(true);
+                new LoginWindow(serviceController).setVisible(true);
             });
         }
     }

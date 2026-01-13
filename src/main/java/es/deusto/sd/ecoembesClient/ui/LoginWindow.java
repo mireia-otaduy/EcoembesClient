@@ -1,5 +1,6 @@
 package es.deusto.sd.ecoembesClient.ui;
 
+import es.deusto.sd.ecoembesClient.controller.ServiceController;
 import es.deusto.sd.ecoembesClient.proxy.AuthProxy;
 
 import javax.swing.*;
@@ -8,7 +9,12 @@ import java.awt.*;
 
 public class LoginWindow extends JFrame {
 
-    private final AuthProxy authProxy;
+    /**
+	 * 
+	 */
+	private static final long serialVersionUID = 1L;
+
+	private final ServiceController serviceController;
 
     private JTextField txtEmail;
     private JPasswordField txtPassword;
@@ -23,8 +29,8 @@ public class LoginWindow extends JFrame {
     private final Font fontText   = new Font("Segoe UI", Font.PLAIN, 14);
     private final Font fontButton = new Font("Segoe UI", Font.PLAIN, 14);
 
-    public LoginWindow(AuthProxy authProxy) {
-        this.authProxy = authProxy;
+    public LoginWindow(ServiceController serviceController) {
+        this.serviceController = serviceController;
         initComponents();
     }
 
@@ -125,14 +131,14 @@ public class LoginWindow extends JFrame {
         }
 
         try {
-            String token = authProxy.login(email, password);
+            String token = serviceController.login(email, password);
             if (token != null) {
                 JOptionPane.showMessageDialog(this,
                         "Login successful.",
                         "Information", JOptionPane.INFORMATION_MESSAGE);
 
                 // Pass email so MainWindow and AccountWindow can show it
-                MainWindow main = new MainWindow(authProxy, token, email);
+                MainWindow main = new MainWindow(serviceController, token, email);
                 main.setVisible(true);
                 dispose();
             } else {
@@ -146,13 +152,13 @@ public class LoginWindow extends JFrame {
                     "Error", JOptionPane.ERROR_MESSAGE);
         }
     }
-
+/*
     // Standalone main for quick testing (optional)
     public static void main(String[] args) {
         SwingUtilities.invokeLater(() -> {
             AuthProxy proxy = new AuthProxy("http://localhost:8081");
-            LoginWindow w = new LoginWindow(proxy);
-            w.setVisible(true);
+            LoginWindow w = new LoginWindow(serviceController)
+            		w.setVisible(true);
         });
-    }
-}
+    }*/
+  }

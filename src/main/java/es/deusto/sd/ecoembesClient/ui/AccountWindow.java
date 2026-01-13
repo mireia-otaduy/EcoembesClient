@@ -1,6 +1,7 @@
 package es.deusto.sd.ecoembesClient.ui;
 
-import es.deusto.sd.ecoembesClient.proxy.AuthProxy;
+import es.deusto.sd.ecoembesClient.controller.ServiceController;
+
 
 import javax.swing.*;
 import java.awt.*;
@@ -8,7 +9,7 @@ import java.awt.*;
 
 public class AccountWindow extends JFrame {
 
-    private final AuthProxy authProxy;
+    private final ServiceController serviceController;
     private final String token;
     private final String userEmail;
     private final MainWindow parent;
@@ -21,16 +22,17 @@ public class AccountWindow extends JFrame {
     private final Font fontText  = new Font("Segoe UI", Font.PLAIN, 14);
     private final Font fontBtn   = new Font("Segoe UI", Font.PLAIN, 13);
 
-    public AccountWindow(AuthProxy authProxy, String token,
+    public AccountWindow(ServiceController serviceController, String token,
                          String userEmail, MainWindow parent) {
-        this.authProxy = authProxy;
+        this.serviceController = serviceController;
         this.token = token;
         this.userEmail = userEmail;
         this.parent = parent;
         initUI();
     }
 
-    private void initUI() {
+
+	private void initUI() {
         setTitle("Account details");
         setSize(480, 260);
         setLocationRelativeTo(parent);
@@ -111,18 +113,18 @@ public class AccountWindow extends JFrame {
             try {
                 // Try to logout on the server. If the token is already invalid,
                 // we simply ignore it and continue.
-                authProxy.logout(token);
+                serviceController.logout(token);
             } catch (Exception ex) {
                 JOptionPane.showMessageDialog(this,
                         "Error during logout: " + ex.getMessage(),
                         "Logout", JOptionPane.ERROR_MESSAGE);
             }
-
+            
             // Close account window and main window, return to login
             dispose();
             parent.dispose();
             SwingUtilities.invokeLater(() ->
-                    new LoginWindow(authProxy).setVisible(true));
+                    new LoginWindow(serviceController).setVisible(true));
         }
     }
 

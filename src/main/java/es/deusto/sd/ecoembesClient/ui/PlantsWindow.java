@@ -7,6 +7,7 @@ import java.awt.GridBagConstraints;
 import java.awt.GridBagLayout;
 import java.awt.Insets;
 import java.time.LocalDate;
+import java.util.List;
 
 import javax.swing.BorderFactory;
 import javax.swing.JButton;
@@ -15,18 +16,21 @@ import javax.swing.JLabel;
 import javax.swing.JOptionPane;
 import javax.swing.JPanel;
 import javax.swing.JScrollPane;
+import javax.swing.JSplitPane;
 import javax.swing.JTextArea;
 import javax.swing.JTextField;
 import javax.swing.border.TitledBorder;
 
+import es.deusto.sd.ecoembesClient.controller.ServiceController;
+import es.deusto.sd.ecoembesClient.data.Dumpster;
+import es.deusto.sd.ecoembesClient.data.Plant;
 import es.deusto.sd.ecoembesClient.proxy.AuthProxy;
 import es.deusto.sd.ecoembesClient.proxy.PlantProxy;
 
 public class PlantsWindow extends JPanel {
 
-    private final AuthProxy authProxy;
+    private final ServiceController serviceController;
     private final String token;
-    private final PlantProxy plantProxy;
 
     private final Color bgMain;
     private final Font fontSection;
@@ -35,14 +39,13 @@ public class PlantsWindow extends JPanel {
     // contenedor que cambia según la opción del menú
     private JPanel contentPanel;
 
-    public PlantsWindow(AuthProxy authProxy, String token,
+    public PlantsWindow(ServiceController serviceController, String token,
                         Color bgMain, Font fontSection, Font fontText) {
-        this.authProxy = authProxy;
+        this.serviceController = serviceController;
         this.token = token;
         this.bgMain = bgMain;
         this.fontSection = fontSection;
         this.fontText = fontText;
-        this.plantProxy = new PlantProxy("http://localhost:8081");
         initUI();
     }
 
@@ -145,7 +148,7 @@ public class PlantsWindow extends JPanel {
                 String plantName = txtPlantName.getText().trim();
                 LocalDate date = LocalDate.parse(txtDate.getText().trim());
 
-                String json = plantProxy.getPlantCapacity(plantName, date, token);
+                String json = serviceController.getPlantCapacity(plantName, date, token);
                 txtResult.setText(json);
             } catch (java.time.format.DateTimeParseException ex) {
                 JOptionPane.showMessageDialog(panel,
@@ -158,7 +161,17 @@ public class PlantsWindow extends JPanel {
             }
         });
 
-        return panel;
+        JPanel leftPanel = panel; // existing form
+        JScrollPane rightPanel = createPlantsScrollPanel();
+
+        JSplitPane split = new JSplitPane(JSplitPane.HORIZONTAL_SPLIT,
+                leftPanel, rightPanel);
+        split.setResizeWeight(0.6);
+        
+        JPanel endpanel = new JPanel(new BorderLayout());
+        endpanel.add(split, BorderLayout.CENTER);
+
+        return endpanel;
     }
 
     /* ====== 2. ASSIGN DUMPSTER TO PLANT (POR ID) ====== */
@@ -190,7 +203,7 @@ public class PlantsWindow extends JPanel {
                 long dumpsterId = Long.parseLong(txtDumpsterId.getText().trim());
                 String plantName = txtPlantName.getText().trim();
 
-                boolean ok = plantProxy.assignDumpsterToPlant(dumpsterId, plantName, token);
+                boolean ok = serviceController.assignDumpsterToPlant(dumpsterId, plantName, token);
 
                 if (ok) {
                     JOptionPane.showMessageDialog(panel,
@@ -212,7 +225,95 @@ public class PlantsWindow extends JPanel {
             }
         });
 
-        return panel;
-    }
+        JPanel leftPanel = panel; // existing form
+        JScrollPane topRightPanel = createPlantsScrollPanel();
+        JScrollPane botRightPanel = createDumpstersScrollPanel();
+        
+        JSplitPane rightPanel = new JSplitPane(JSplitPane.VERTICAL_SPLIT,
+        		topRightPanel, botRightPanel);
+        rightPanel.setResizeWeight(0.6);
+        
+        JSplitPane splitMain = new JSplitPane(JSplitPane.HORIZONTAL_SPLIT,
+                leftPanel, rightPanel);
+        splitMain.setResizeWeight(0.6);
+        
+        JPanel endpanel = new JPanel(new BorderLayout());
+        endpanel.add(splitMain, BorderLayout.CENTER);
 
+        return endpanel;
+    }
+    
+    private JScrollPane createPlantsScrollPanel() {
+
+        JTextArea txtDumpsters = new JTextArea(18, 30);
+        txtDumpsters.setEditable(false);
+        txtDumpsters.setFont(fontText);
+        txtDumpsters.setLineWrap(true);
+        txtDumpsters.setWrapStyleWord(true);
+
+        JScrollPane scroll = new JScrollPane(txtDumpsters);
+        scroll.setBorder(BorderFactory.createTitledBorder(
+                BorderFactory.createLineBorder(new Color(200, 230, 230)),
+                "All dumpsters",
+                TitledBorder.LEFT,
+                TitledBorder.TOP,
+                fontSection,
+                new Color(0, 77, 64)
+        ));
+
+        // load immediately
+        try {
+            List<Plant> plants = serviceController.getAllPlants(token);
+
+            // Convert the list to a readable string
+            StringBuilder sb = new StringBuilder();
+            for (Plant d : plants) {
+                sb.append(d.toString()); // or format the fields as you like
+                sb.append("\n");
+            }
+
+            txtDumpsters.setText(sb.toString());
+        } catch (Exception e) {
+            txtDumpsters.setText("Unable to load dumpsters.");
+        }
+
+        return scroll;
+    }
+    
+    private JScrollPane createDumpstersScrollPanel() {
+
+        JTextArea txtDumpsters = new JTextArea(18, 30);
+        txtDumpsters.setEditable(false);
+        txtDumpsters.setFont(fontText);
+        txtDumpsters.setLineWrap(true);
+        txtDumpsters.setWrapStyleWord(true);
+
+        JScrollPane scroll = new JScrollPane(txtDumpsters);
+        scroll.setBorder(BorderFactory.createTitledBorder(
+                BorderFactory.createLineBorder(new Color(200, 230, 230)),
+                "All dumpsters",
+                TitledBorder.LEFT,
+                TitledBorder.TOP,
+                fontSection,
+                new Color(0, 77, 64)
+        ));
+
+        // load immediately
+        try {
+            List<Dumpster> dumpsters = serviceController.getAllDumpsters(token);
+
+            // Convert the list to a readable string
+            StringBuilder sb = new StringBuilder();
+            for (Dumpster d : dumpsters) {
+                sb.append(d.toString()); // or format the fields as you like
+                sb.append("\n");
+            }
+
+            txtDumpsters.setText(sb.toString());
+        } catch (Exception e) {
+            txtDumpsters.setText("Unable to load dumpsters.");
+        }
+
+        return scroll;
+    }
 }
