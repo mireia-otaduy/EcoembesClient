@@ -1,7 +1,6 @@
 package es.deusto.sd.ecoembesClient.ui;
 
 import es.deusto.sd.ecoembesClient.controller.ServiceController;
-import es.deusto.sd.ecoembesClient.proxy.AuthProxy;
 
 import javax.swing.*;
 import java.awt.*;
@@ -54,7 +53,7 @@ public class MainWindow extends JFrame {
         contentPanel.setBorder(BorderFactory.createEmptyBorder(20, 20, 20, 20));
         add(contentPanel, BorderLayout.CENTER);
 
-        // inicializamos ventanas reutilizables
+        // inicializamos ventanas reutilizables usando el ServiceController
         dumpstersWindow = new DumpstersWindow(serviceController, token, bgMain, fontCard, fontText);
         plantsWindow    = new PlantsWindow(serviceController, token, bgMain, fontCard, fontText);
 
@@ -288,7 +287,7 @@ public class MainWindow extends JFrame {
 
         if (resp == JOptionPane.YES_OPTION) {
             try {
-                boolean ok = serviceController.logout(token);
+                serviceController.logout(token);
             } catch (Exception ex) {
                 JOptionPane.showMessageDialog(this,
                         "Error during logout: " + ex.getMessage(),

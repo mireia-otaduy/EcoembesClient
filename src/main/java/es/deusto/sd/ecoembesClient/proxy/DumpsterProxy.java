@@ -1,232 +1,154 @@
 package es.deusto.sd.ecoembesClient.proxy;
 
-import java.io.BufferedReader;
-import java.io.IOException;
-import java.io.InputStream;
-import java.io.InputStreamReader;
-import java.io.OutputStream;
-import java.net.HttpURLConnection;
-import java.net.URL;
-import java.nio.charset.StandardCharsets;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.http.ResponseEntity;
+import org.springframework.stereotype.Service;
+import org.springframework.web.client.RestTemplate;
+
 import java.time.LocalDate;
+import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
-
-
 
 import es.deusto.sd.ecoembesClient.data.Dumpster;
 
 /**
  * HTTP proxy for Dumpster-related operations against the Ecoembes backend.
- * Requires a valid auth token obtained via AuthProxy.login().
+ * Requires a valid auth token obtained via AuthProxy.login.
  */
+@Service
 public class DumpsterProxy {
 
-	private final String baseUrl; // e.g. "http://localhost:8081"
+    @Value("${ecoembes.base-url}")
+    private String baseUrl; // e.g. http://localhost:8080
 
-	public DumpsterProxy(String baseUrl) {
-		this.baseUrl = baseUrl;
-	}
+    private final RestTemplate restTemplate;
+    private final DateTimeFormatter fmt = DateTimeFormatter.ofPattern("ddMMyyyy");
 
-	/* ========== 1. CREATE DUMPSTER ========== */
+    public DumpsterProxy(RestTemplate restTemplate) {
+        this.restTemplate = restTemplate;
+    }
 
-	public void createDumpster(long dumpsterId,
-			int pc,
-			String city,
-			String address,
-			String type,
-			String token) throws IOException {
+    // 1. CREATE DUMPSTER
+    public void createDumpster(long dumpsterId, int pc, String city, String address, String type, String token) {
+        String path = String.format(
+                "/dumpsters?dumpsterID=%d&dumpsterPC=%d&dumpsterCity=%s&dumpsterAddress=%s&dumpsterType=%s&token=%s",
+                dumpsterId, pc, city, address, type, token);
+        String url = baseUrl + path;
 
-		String path = String.format(
-				"/dumpsters?dumpsterID=%d&dumpsterPC=%d&dumpsterCity=%s&dumpsterAddress=%s&dumpsterType=%s&token=%s",
-				dumpsterId, pc, city, address, type, token
-				);
+        ResponseEntity<Void> resp = restTemplate.postForEntity(url, null, Void.class);
+        int status = resp.getStatusCode().value();
+        if (status != 204 && status != 200) {
+            throw new RuntimeException("HTTP error creating dumpster: " + status);
+        }
+    }
 
-		URL url = new URL(baseUrl + path);
-		HttpURLConnection con = (HttpURLConnection) url.openConnection();
-		con.setRequestMethod("POST");
+    // 2. UPDATE DUMPSTER CAPACITY
+    public String updateDumpster(long id, int containers, String token) {
+        String path = String.format("/dumpsters/%d?Containers=%d&Token=%s", id, containers, token);
+        String url = baseUrl + path;
 
-		int status = con.getResponseCode();
-		if (status != 204 && status != 200) {
-			throw new IOException("HTTP error creating dumpster: " + status);
-		}
-	}
+        ResponseEntity<String> resp = restTemplate.exchange(
+                url,
+                org.springframework.http.HttpMethod.PUT,
+                null,
+                String.class
+        );
+        int status = resp.getStatusCode().value();
+        if (status == 200) { // JSON DumpsterDTO
+            return resp.getBody();
+        }
+        throw new RuntimeException("HTTP error updating dumpster: " + status);
+    }
 
-	/* ========== 2. UPDATE DUMPSTER CAPACITY ========== */
+    // 3. USAGE BY DUMPSTER ID
+    public String getUsageById(long id, LocalDate from, LocalDate to, String token) {
+        String fromStr = from.format(fmt);
+        String toStr = to.format(fmt);
+        String path = String.format(
+                "/dumpsters/%d/usages?FromDate=%s&ToDate=%s&token=%s",
+                id, fromStr, toStr, token);
+        String url = baseUrl + path;
 
-	public String updateDumpster(long id,
-			int containers,
-			String token) throws IOException {
+        ResponseEntity<String> resp = restTemplate.getForEntity(url, String.class);
+        int status = resp.getStatusCode().value();
+        if (status == 200) { // JSON UsageDTO (texto completo, sin los que añadas antes)
+            return resp.getBody();
+        }
+        throw new RuntimeException("HTTP error querying usage by id: " + status);
+    }
 
-		String path = String.format(
-				"/dumpsters/%d?Containers=%d&Token=%s",
-				id, containers, token
-				);
+    // 4. STATUS BY POSTAL CODE
+    public String getStatusByPostalCode(int pc, LocalDate date, String token) {
+        String dateStr = date.format(fmt);
+        String path = String.format(
+                "/dumpsters/%d/statuses?Date=%s&token=%s",
+                pc, dateStr, token);
+        String url = baseUrl + path;
 
-		URL url = new URL(baseUrl + path);
-		HttpURLConnection con = (HttpURLConnection) url.openConnection();
-		con.setRequestMethod("PUT");
-		con.setRequestProperty("Accept", "application/json");
+        ResponseEntity<String> resp = restTemplate.getForEntity(url, String.class);
+        int status = resp.getStatusCode().value();
+        if (status == 200) { // JSON StatusDTO
+            return resp.getBody();
+        }
+        throw new RuntimeException("HTTP error querying status by postal code: " + status);
+    }
 
-		int status = con.getResponseCode();
-		if (status == 200) {
-			try (BufferedReader br = new BufferedReader(
-					new InputStreamReader(con.getInputStream(), StandardCharsets.UTF_8))) {
-				StringBuilder sb = new StringBuilder();
-				String line;
-				while ((line = br.readLine()) != null) {
-					sb.append(line);
-				}
-				return sb.toString(); // JSON DumpsterDTO
-			}
-		}
-		throw new IOException("HTTP error updating dumpster: " + status);
-	}
+    // 5. LISTA DE TODOS LOS DUMPSTERS
+    public List<Dumpster> getAllDumpsters(String token) {
+        String endpoint = baseUrl + "/dumpsters/retrievals?token=" + token;
 
+        ResponseEntity<String> resp = restTemplate.getForEntity(endpoint, String.class);
+        int status = resp.getStatusCode().value();
+        if (status == 200) {
+            String json = resp.getBody();
+            if (json == null) {
+                return List.of();
+            }
+            json = json.trim();
+            System.out.println("Received JSON (dumpsters): " + json);
 
+            // Remove surrounding [ ] from JSON array
+            if (json.startsWith("[") && json.endsWith("]")) {
+                json = json.substring(1, json.length() - 1);
+            }
 
-	/* ========== 3. USAGE BY DUMPSTER ID ========== */
+            List<Dumpster> dumpsters = new ArrayList<>();
+            if (json.isBlank()) {
+                return dumpsters;
+            }
 
-	public String getUsageById(long id,
-			LocalDate from,
-			LocalDate to,
-			String token) throws IOException {
+            // Very simple manual parse, assumes no nested objects and flat fields
+            String[] items = json.split("},");
+            for (String item : items) {
+                item = item.replace("{", "").replace("}", "").trim();
 
-		var fmt = java.time.format.DateTimeFormatter.ofPattern("ddMMyyyy");
-		String fromStr = from.format(fmt);
-		String toStr = to.format(fmt);
+                long id = 0;
+                int containers = 0;
+                String level = "";
+                int pc = 0;
 
-		String path = String.format(
-				"/dumpsters/%d/usages?FromDate=%s&ToDate=%s&token=%s",
-				id, fromStr, toStr, token
-				);
-
-		URL url = new URL(baseUrl + path);
-		HttpURLConnection con = (HttpURLConnection) url.openConnection();
-		con.setRequestMethod("GET");
-		con.setRequestProperty("Accept", "application/json");
-
-		int status = con.getResponseCode();
-		if (status == 200) {
-			StringBuilder sb = new StringBuilder();
-			try (BufferedReader br = new BufferedReader(
-					new InputStreamReader(con.getInputStream(), StandardCharsets.UTF_8))) {
-				String line;
-				while ((line = br.readLine()) != null) {
-					sb.append(line).append('\n');
-				}
-			}
-			return sb.toString(); // JSON UsageDTO
-		}
-		throw new IOException("HTTP error querying usage by id: " + status);
-	}
-
-
-	/* ========== 4. STATUS BY POSTAL CODE ========== */
-
-	public String getStatusByPostalCode(int pc,
-			LocalDate date,
-			String token) throws IOException {
-
-		var fmt = java.time.format.DateTimeFormatter.ofPattern("ddMMyyyy");
-		String dateStr = date.format(fmt);
-
-		String path = String.format(
-				"/dumpsters/%d/statuses?Date=%s&token=%s",
-				pc, dateStr, token
-				);
-
-		URL url = new URL(baseUrl + path);
-		HttpURLConnection con = (HttpURLConnection) url.openConnection();
-		con.setRequestMethod("GET");
-		con.setRequestProperty("Accept", "application/json");
-
-		int status = con.getResponseCode();
-		if (status == 200) {
-			StringBuilder sb = new StringBuilder();
-			try (BufferedReader br = new BufferedReader(
-					new InputStreamReader(con.getInputStream(), StandardCharsets.UTF_8))) {
-				String line;
-				while ((line = br.readLine()) != null) {
-					sb.append(line).append('\n');
-				}
-			}
-			return sb.toString(); // JSON StatusDTO
-		}
-		throw new IOException("HTTP error querying status by postal code: " + status);
-	}
-	
-	public List<Dumpster> getAllDumpsters(String token) throws IOException {
-
-	    String endpoint = baseUrl + "/dumpsters/retrievals?token=" + token;
-	    URL url = new URL(endpoint);
-	    HttpURLConnection conn = (HttpURLConnection) url.openConnection();
-
-	    conn.setRequestMethod("GET");
-	    conn.setRequestProperty("Accept", "application/json");
-	    conn.setDoOutput(true);
-
-	    int responseCode = conn.getResponseCode();
-
-	    if (responseCode == HttpURLConnection.HTTP_OK) {
-	        // Read the response into a String
-	        StringBuilder sb = new StringBuilder();
-	        try (BufferedReader br = new BufferedReader(
-	                new InputStreamReader(conn.getInputStream(), StandardCharsets.UTF_8))) {
-	            String line;
-	            while ((line = br.readLine()) != null) {
-	                sb.append(line);
-	            }
-	        }
-
-	        String json = sb.toString().trim();
-	        //System.out.println("Received JSON: " + json);
-	        // Remove surrounding [ ] from JSON array
-	        if (json.startsWith("[") && json.endsWith("]")) {
-	            json = json.substring(1, json.length() - 1);
-	        }
-
-	        List<Dumpster> dumpsters = new ArrayList<>();
-
-	        // Split each object (assumes no nested } inside objects)
-	        String[] items = json.split("\\},\\s*\\{");
-
-	        for (String item : items) {
-	            item = item.replace("{", "").replace("}", "").trim();
-
-	            long id = 0;
-	            int containers = 0;
-	            String level = "";
-	            int pc = 0;
-	            
-	            String[] fields = item.split(",");
-	            for (String field : fields) {
-	                String[] kv = field.split(":", 2);
-	                if (kv.length != 2) continue;
-
-	                String key = kv[0].trim().replace("\"", "");
-	                String value = kv[1].trim().replace("\"", "");
-	                
-	                switch (key) {
-	                    case "id" -> id = Long.parseLong(value);
-	                    case "containers" -> containers = Integer.parseInt(value);
-	                    case "level" -> level = value;
-	                    case "pc" -> pc = Integer.parseInt(value);
-	                    
-	                }
-	            }
-
-	            // Construct the immutable record
-	            dumpsters.add(new Dumpster(id, containers, level,pc));
-	        }
-
-	        return dumpsters;
-
-	    } else if (responseCode == HttpURLConnection.HTTP_UNAUTHORIZED) {
-	        throw new SecurityException("Unauthorized: invalid token");
-	    } else {
-	        throw new IOException("Server error: " + responseCode);
-	    }
-	}
+                String[] fields = item.split(",");
+                for (String field : fields) {
+                    String[] kv = field.split(":", 2);
+                    if (kv.length != 2) continue;
+                    String key = kv[0].trim().replace("\"", "");
+                    String value = kv[1].trim().replace("\"", "");
+                    switch (key) {
+                        case "id" -> id = Long.parseLong(value);
+                        case "containers" -> containers = Integer.parseInt(value);
+                        case "level" -> level = value;
+                        case "pc" -> pc = Integer.parseInt(value);
+                        default -> {}
+                    }
+                }
+                dumpsters.add(new Dumpster(id, containers, level, pc));
+            }
+            return dumpsters;
+        } else if (status == 401) {
+            throw new SecurityException("Unauthorized: invalid token");
+        } else {
+            throw new RuntimeException("Server error: " + status);
+        }
+    }
 }

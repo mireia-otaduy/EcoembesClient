@@ -1,16 +1,24 @@
 package es.deusto.sd.ecoembesClient.proxy;
 
-import java.io.*;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.stereotype.Service;
+
+import java.io.BufferedReader;
+import java.io.IOException;
+import java.io.InputStreamReader;
+import java.io.OutputStream;
 import java.net.HttpURLConnection;
 import java.net.URL;
 import java.nio.charset.StandardCharsets;
 
+@Service
 public class AuthProxy {
 
-    private final String baseUrl; // ej: "http://localhost:8081"
+    @Value("${ecoembes.base-url}")
+    private String baseUrl; // ej: "http://localhost:8081"
 
-    public AuthProxy(String baseUrl) {
-        this.baseUrl = baseUrl;
+    public AuthProxy() {
+        // constructor vacío para Spring
     }
 
     public String login(String email, String password) throws IOException {
@@ -30,10 +38,12 @@ public class AuthProxy {
         if (status == 200) {
             try (BufferedReader br = new BufferedReader(
                     new InputStreamReader(con.getInputStream(), StandardCharsets.UTF_8))) {
-                return br.readLine(); // token devuelto por el backend (String plano)
+                // token devuelto por el backend (String plano)
+                return br.readLine();
             }
         } else if (status == 401) {
-            return null; // credenciales incorrectas
+            // credenciales incorrectas
+            return null;
         }
         throw new IOException("Error HTTP en login: " + status);
     }
@@ -53,14 +63,13 @@ public class AuthProxy {
 
         int status = con.getResponseCode();
         if (status == 204) {
-            return true;            // logout OK
+            // logout OK
+            return true;
         }
         if (status == 401) {
-            // Token already invalid/expired -> for the client it's also "OK"
+            // Token ya inválido/expirado -> para el cliente también es "OK"
             return false;
         }
         throw new IOException("HTTP error in logout: " + status);
     }
-
 }
-

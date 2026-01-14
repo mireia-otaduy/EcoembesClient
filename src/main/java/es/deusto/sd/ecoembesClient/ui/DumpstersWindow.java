@@ -23,8 +23,6 @@ import javax.swing.border.TitledBorder;
 
 import es.deusto.sd.ecoembesClient.controller.ServiceController;
 import es.deusto.sd.ecoembesClient.data.Dumpster;
-import es.deusto.sd.ecoembesClient.proxy.AuthProxy;
-import es.deusto.sd.ecoembesClient.proxy.DumpsterProxy;
 
 public class DumpstersWindow extends JPanel {
 
@@ -38,8 +36,11 @@ public class DumpstersWindow extends JPanel {
     // contenedor que cambia según la opción del menú
     private JPanel contentPanel;
 
-    public DumpstersWindow(ServiceController serviceController, String token,
-                           Color bgMain, Font fontSection, Font fontText) {
+    public DumpstersWindow(ServiceController serviceController,
+                           String token,
+                           Color bgMain,
+                           Font fontSection,
+                           Font fontText) {
         this.serviceController = serviceController;
         this.token = token;
         this.bgMain = bgMain;
@@ -249,8 +250,9 @@ public class DumpstersWindow extends JPanel {
         JSplitPane split = new JSplitPane(JSplitPane.HORIZONTAL_SPLIT,
                 leftPanel, rightPanel);
         split.setResizeWeight(0.6);
-        
+
         JPanel endpanel = new JPanel(new BorderLayout());
+        endpanel.setBackground(bgMain);
         endpanel.add(split, BorderLayout.CENTER);
 
         return endpanel;
@@ -326,8 +328,9 @@ public class DumpstersWindow extends JPanel {
         JSplitPane split = new JSplitPane(JSplitPane.HORIZONTAL_SPLIT,
                 leftPanel, rightPanel);
         split.setResizeWeight(0.6);
-        
+
         JPanel endpanel = new JPanel(new BorderLayout());
+        endpanel.setBackground(bgMain);
         endpanel.add(split, BorderLayout.CENTER);
 
         return endpanel;
@@ -346,22 +349,22 @@ public class DumpstersWindow extends JPanel {
         txtResult.setLineWrap(true);
         txtResult.setWrapStyleWord(true);
 
-        gbc.gridx = 0;	gbc.gridy = 0;
+        gbc.gridx = 0; gbc.gridy = 0;
         panel.add(label("Postal code:"), gbc);
         gbc.gridx = 1;
         panel.add(txtPC, gbc);
 
-        gbc.gridx = 0;	gbc.gridy = 1;
+        gbc.gridx = 0; gbc.gridy = 1;
         panel.add(label("Date (yyyy-MM-dd):"), gbc);
         gbc.gridx = 1;
         panel.add(txtDate, gbc);
 
         JButton btnCheck = new JButton("Check status");
-        gbc.gridx = 0;	gbc.gridy = 2; gbc.gridwidth = 2;
+        gbc.gridx = 0; gbc.gridy = 2; gbc.gridwidth = 2;
         gbc.anchor = GridBagConstraints.EAST;
         panel.add(btnCheck, gbc);
 
-        gbc.gridx = 0;	gbc.gridy = 3; gbc.gridwidth = 2;
+        gbc.gridx = 0; gbc.gridy = 3; gbc.gridwidth = 2;
         gbc.fill = GridBagConstraints.BOTH;
         panel.add(new JScrollPane(txtResult), gbc);
 
@@ -386,22 +389,24 @@ public class DumpstersWindow extends JPanel {
                         "Error", JOptionPane.ERROR_MESSAGE);
             }
         });
-        
+
         JPanel leftPanel = panel; // existing form
         JScrollPane rightPanel = createDumpstersScrollPanel();
 
         JSplitPane split = new JSplitPane(JSplitPane.HORIZONTAL_SPLIT,
                 leftPanel, rightPanel);
         split.setResizeWeight(0.6);
-        
+
         JPanel endpanel = new JPanel(new BorderLayout());
+        endpanel.setBackground(bgMain);
         endpanel.add(split, BorderLayout.CENTER);
 
         return endpanel;
     }
-    
-    private JScrollPane createDumpstersScrollPanel() {
 
+    /* ====== LISTA DE DUMPSTERS ====== */
+
+    private JScrollPane createDumpstersScrollPanel() {
         JTextArea txtDumpsters = new JTextArea(18, 30);
         txtDumpsters.setEditable(false);
         txtDumpsters.setFont(fontText);
@@ -409,32 +414,30 @@ public class DumpstersWindow extends JPanel {
         txtDumpsters.setWrapStyleWord(true);
 
         JScrollPane scroll = new JScrollPane(txtDumpsters);
-        scroll.setBorder(BorderFactory.createTitledBorder(
+        scroll.setBorder(
+            BorderFactory.createTitledBorder(
                 BorderFactory.createLineBorder(new Color(200, 230, 230)),
                 "All dumpsters",
                 TitledBorder.LEFT,
                 TitledBorder.TOP,
                 fontSection,
                 new Color(0, 77, 64)
-        ));
+            )
+        );
 
         // load immediately
         try {
             List<Dumpster> dumpsters = serviceController.getAllDumpsters(token);
-
-            // Convert the list to a readable string
             StringBuilder sb = new StringBuilder();
             for (Dumpster d : dumpsters) {
-                sb.append(d.toString()); // or format the fields as you like
-                sb.append("\n");
+                sb.append(d.toString())
+                  .append(System.lineSeparator());
             }
-
             txtDumpsters.setText(sb.toString());
         } catch (Exception e) {
-            txtDumpsters.setText("Unable to load dumpsters.");
+            txtDumpsters.setText("Unable to load dumpsters: " + e.getMessage());
         }
 
         return scroll;
     }
-
 }

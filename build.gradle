@@ -1,14 +1,12 @@
 plugins {
     id 'java'
-    id 'application'
+    id 'org.springframework.boot' version '3.3.0'
+    id 'io.spring.dependency-management' version '1.1.5'
 }
 
 group = 'es.deusto.sd.ecoembes'
 version = '1.0'
-
-repositories {
-    mavenCentral()
-}
+description = 'EcoembesClient'
 
 java {
     toolchain {
@@ -16,24 +14,26 @@ java {
     }
 }
 
+repositories {
+    mavenCentral()
+}
+
 dependencies {
-
-	// Spring Boot Starter Web for building web applications
+    // Spring Boot básico + Web (para RestTemplate, etc.)
+    implementation 'org.springframework.boot:spring-boot-starter'
     implementation 'org.springframework.boot:spring-boot-starter-web'
-    // Spring Data JPA for database access
-    implementation 'org.springframework.boot:spring-boot-starter-data-jpa'
-    // (Opcional) si más adelante quieres usar JSON (Gson, Jackson…)
-    implementation 'com.fasterxml.jackson.core:jackson-databind:2.18.2'
-    // implementation 'com.google.code.gson:gson:2.11.0'
-    testImplementation 'org.junit.jupiter:junit-jupiter:5.11.0'
-    
+
+    // Opcional: DevTools para recarga en caliente
+    developmentOnly 'org.springframework.boot:spring-boot-devtools'
+
+    testImplementation 'org.springframework.boot:spring-boot-starter-test'
 }
 
-application {
-    // Clase con el main que arranca la UI
-    mainClass = 'client.EcoembesClientApp'
-}
-
-test {
+tasks.test {
     useJUnitPlatform()
+}
+
+// Para usar tu clase principal con main de Spring Boot
+springBoot {
+    mainClass = 'es.deusto.sd.ecoembesClient.EcoembesClientApp'
 }
